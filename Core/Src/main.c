@@ -80,17 +80,15 @@ int main(void)
 	RCC->APB1ENR  |= RCC_APB1ENR_USART3EN;
   SystemClock_Config();
 
-	// Configure the leds and button
+	// Configure the leds
 	GPIOC->MODER |= (1<<12) | (1<<14) | (1<<16) | (1<<18);
 	GPIOC->MODER &= ~((1<<13) | (1<<15) | (1<<17) | (1<<19));
 	GPIOC->OTYPER &= ~((1<<6) | (1<<7) | (1<<8) | (1<<9));
 	GPIOC->OSPEEDR &= ~((1<<12) | (1<<14) | (1<<16) | (1<<18));
 	GPIOC->PUPDR &= ~((1<<12) | (1<<14) | (1<<16) | (1<<18)
 									| (1<<13) | (1<<15) | (1<<17) | (1<<19));
-	GPIOA->MODER &= ~((1<<0) | (1<<1));
 	GPIOC->OSPEEDR &= ~((1<<0) | (1<<1));
-	GPIOA->PUPDR &= ~((1<<0));
-	GPIOA->PUPDR |= (1<<1);
+
 	
 
 	GPIOB->MODER |= (1<<23) | (1<<21);
@@ -106,34 +104,38 @@ int main(void)
 	USART3->CR1 |= (1<<2) | (1<<3);
 	USART3->CR1 |= (1<<0);
 	
+	USART3->CR1 |= (1<<5);
+	NVIC_EnableIRQ(29);
+	NVIC_SetPriority(29,1);
   
 	GPIOC->ODR &= ~((1<<6) | (1<<7) | (1<<8) | (1<<9));	
-
+	//Wait_for_input();
+	
   while (1)
   {
-		if (USART3->ISR & (1<<5))
-		{
-			recieved = USART3->RDR;
-			switch(recieved){
-				case 'r':
-				GPIOC->ODR |= (1<<6);	
-				break;
-				case 'b':
-				GPIOC->ODR |= (1<<7);
-				break;
-				case 'g':
-				GPIOC->ODR |= (1<<9);
-				break;
-				case 'o':
-				GPIOC->ODR |= (1<<8);
-				break;
-				default:
-				Transmit_string("error\n");
-			}	
-				
-		}
-		//HAL_Delay(200);
-		//Transmit_char('a');
+//		if (USART3->ISR & (1<<5))
+//		{
+//			recieved = USART3->RDR;
+//			switch(recieved){
+//				case 'r':
+//				GPIOC->ODR |= (1<<6);	
+//				break;
+//				case 'b':
+//				GPIOC->ODR |= (1<<7);
+//				break;
+//				case 'g':
+//				GPIOC->ODR |= (1<<9);
+//				break;
+//				case 'o':
+//				GPIOC->ODR |= (1<<8);
+//				break;
+//				default:
+//				Transmit_string("error\n");
+//			}	
+//				
+//		}
+//		HAL_Delay(200);
+//		Transmit_char('a');
   }
 
 }
@@ -207,9 +209,45 @@ void Transfer_error(void)
 	return;
 }
 
+void USART3_4_IRQHandler(void)
+{
+	input = USART3->RDR;
+	flag = 1;
+	Transmit_string("check\n");
+}
 
-
-
+void Wait_for_input(void)
+{
+	int led;
+	Transmit_string("CMD? \n");
+	while(!flag)
+	{
+	}
+	led = input;
+	flag = 0;
+	while(!flag)
+	{
+	}
+	char read = input;
+			flag = 0;
+			switch(read){
+				case 0:
+				GPIOC->ODR &= ~(1<<led);
+				Transmit_string("OFF\n");				
+				break;
+				case 1:
+				GPIOC->ODR |= (1<<led);
+				Transmit_string("ON\n");
+				break;
+				case 2:
+				GPIOC->ODR ^= (1<<led);
+				Transmit_string("Toggle\n");
+				break;
+				default:
+				Transmit_string("error\n");
+				Wait_for_input();
+			}	
+}
 
 /* USER CODE END 4 */
 
