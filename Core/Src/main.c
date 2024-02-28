@@ -90,7 +90,7 @@ int main(void)
 	GPIOC->OSPEEDR &= ~((1<<0) | (1<<1));
 
 	
-
+  // Configure the Rx and Tx
 	GPIOB->MODER |= (1<<23) | (1<<21);
 	GPIOB->MODER &= ~((1<<22) | (1<<20));
 	GPIOB->OTYPER &= ~((1<<10) | (1<<11));
@@ -100,19 +100,23 @@ int main(void)
 	GPIOB->AFR[1] &= ~((1<<15) | (1<<13) | (1<<12) | (1<<11)
 									| (1<<9) | (1<<8));
 	
+	// Configure USART3
   USART3->BRR = 69;
 	USART3->CR1 |= (1<<2) | (1<<3);
 	USART3->CR1 |= (1<<0);
 	
+	// Enable the interrupt
 	USART3->CR1 |= (1<<5);
 	NVIC_EnableIRQ(29);
 	NVIC_SetPriority(29,1);
   
+	// Turn off the leds
 	GPIOC->ODR &= ~((1<<6) | (1<<7) | (1<<8) | (1<<9));	
-	//Wait_for_input();
 	
   while (1)
   {
+		
+		// uncomment for part 1
 //		if (USART3->ISR & (1<<5))
 //		{
 //			recieved = USART3->RDR;
@@ -136,6 +140,9 @@ int main(void)
 //		}
 //		HAL_Delay(200);
 //		Transmit_char('a');
+
+		Wait_for_input();
+
   }
 
 }
@@ -177,6 +184,9 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+/**
+* Transmits a single character
+*/
 void Transmit_char(char transmitted)
 {
 	while((USART3->ISR & (1<<7)) == 0)
@@ -186,6 +196,10 @@ void Transmit_char(char transmitted)
 	USART3->TDR = transmitted;
 }
 
+/**
+* Transmits a string by calling
+* Transmit_char repeatedly
+*/
 void Transmit_string(char* string)
 {
 	int i = 0;
@@ -197,6 +211,9 @@ void Transmit_string(char* string)
 	Transmit_char('\r');
 }
 
+/**
+* Transmits an error message
+*/
 void Transfer_error(void)
 {
 	Transmit_char('e');
@@ -209,21 +226,48 @@ void Transfer_error(void)
 	return;
 }
 
+/**
+* Interrupt handler that is triggered when
+* data is recieved
+*/
 void USART3_4_IRQHandler(void)
 {
 	input = USART3->RDR;
 	flag = 1;
-	Transmit_string("check\n");
 }
 
+/**
+* Second part of the lab
+* Takes an input color and
+* number of a command
+*/
 void Wait_for_input(void)
 {
+	char color;
 	int led;
 	Transmit_string("CMD? \n");
 	while(!flag)
 	{
 	}
-	led = input;
+	color = input;
+	switch(color){
+				case 'r':
+				led = 6;
+				break;
+				case 'b':
+				led = 7;
+				break;
+				case 'g':
+				led = 9;
+				break;
+				case 'o':
+				led = 8;
+				break;
+				default:
+				Transmit_string("error with color\n");
+				flag = 0;
+				return;
+	}
 	flag = 0;
 	while(!flag)
 	{
@@ -231,22 +275,24 @@ void Wait_for_input(void)
 	char read = input;
 			flag = 0;
 			switch(read){
-				case 0:
+				case '0':
 				GPIOC->ODR &= ~(1<<led);
 				Transmit_string("OFF\n");				
 				break;
-				case 1:
+				case '1':
 				GPIOC->ODR |= (1<<led);
 				Transmit_string("ON\n");
 				break;
-				case 2:
+				case '2':
 				GPIOC->ODR ^= (1<<led);
 				Transmit_string("Toggle\n");
 				break;
 				default:
-				Transmit_string("error\n");
-				Wait_for_input();
-			}	
+				Transmit_string("error with command\n");
+				flag = 0;
+				return;
+			}
+flag = 0;			
 }
 
 /* USER CODE END 4 */
@@ -282,3 +328,4 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
